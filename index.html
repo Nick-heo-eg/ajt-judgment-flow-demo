@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AJT Judgment Flow Animation</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 28px;
+            color: #333;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        #visualization {
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .layer-box {
+            fill: #fff;
+            stroke: #333;
+            stroke-width: 2;
+            rx: 8;
+        }
+
+        .layer-box.active {
+            stroke: #4CAF50;
+            stroke-width: 3;
+        }
+
+        .layer-label {
+            font-size: 16px;
+            font-weight: 600;
+            fill: #333;
+            text-anchor: middle;
+        }
+
+        .layer-state {
+            font-size: 14px;
+            fill: #666;
+            text-anchor: middle;
+        }
+
+        .token {
+            fill: #2196F3;
+            stroke: #1976D2;
+            stroke-width: 2;
+        }
+
+        .path-line {
+            stroke: #bbb;
+            stroke-width: 2;
+            fill: none;
+            stroke-dasharray: 5,5;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background: #1976D2;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        select {
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+
+        .scenario-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .scenario-info h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            color: #1565C0;
+        }
+
+        .scenario-info p {
+            margin: 0;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-box {
+            width: 30px;
+            height: 20px;
+            border: 2px solid #333;
+            border-radius: 4px;
+        }
+
+        .legend-circle {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AJT Judgment Flow Animation</h1>
+        <div class="subtitle">
+            Interactive visualization of judgment traces moving through 5 layers
+        </div>
+
+        <div class="controls">
+            <label for="scenario">Scenario:</label>
+            <select id="scenario">
+                <option value="stop">Stop Case (External Email)</option>
+                <option value="allow">Allow Case (Internal Email)</option>
+                <option value="indeterminate">Indeterminate Case (DNS Failure)</option>
+            </select>
+            <button id="play">Play</button>
+            <button id="reset">Reset</button>
+        </div>
+
+        <div class="scenario-info" id="scenario-info">
+            <h3>Stop Case: External Email Transmission</h3>
+            <p>User attempts to send email to external domain (clerk@court.gov). System detects external recipient and requires human approval.</p>
+        </div>
+
+        <svg id="visualization" width="1140" height="600"></svg>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-circle" style="background: #2196F3;"></div>
+                <span>Judgment Token</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #fff;"></div>
+                <span>Layer</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #f9f; border-color: #f9f;"></div>
+                <span>L4: Judgment Outcome</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background: #9ff; border-color: #9ff;"></div>
+                <span>L5: Accountability</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Scenarios data
+        const scenarios = {
+            stop: {
+                title: "Stop Case: External Email Transmission",
+                description: "User attempts to send email to external domain (clerk@court.gov). System detects external recipient and requires human approval.",
+                steps: [
+                    { layer: 1, state: "Allow", label: "L1: Process Control" },
+                    { layer: 2, state: "Stop", label: "L2: Safety Gate", detail: "External domain detected" },
+                    { layer: 3, state: "Sufficient", label: "L3: Evidence", detail: "Domain verified" },
+                    { layer: 4, state: "Stop", label: "L4: Judgment", detail: "Final judgment: Stop" },
+                    { layer: 5, state: "Log", label: "L5: Accountability", detail: "Logged, awaiting human approval" }
+                ]
+            },
+            allow: {
+                title: "Allow Case: Internal Email Transmission",
+                description: "User sends email to internal recipient only. All gates pass, message sent after logging.",
+                steps: [
+                    { layer: 1, state: "Allow", label: "L1: Process Control" },
+                    { layer: 2, state: "Allow", label: "L2: Safety Gate", detail: "Internal domain only" },
+                    { layer: 3, state: "Sufficient", label: "L3: Evidence", detail: "All evidence present" },
+                    { layer: 4, state: "Allow", label: "L4: Judgment", detail: "Final judgment: Allow" },
+                    { layer: 5, state: "Log", label: "L5: Accountability", detail: "Logged and executed" }
+                ]
+            },
+            indeterminate: {
+                title: "Indeterminate Case: DNS Lookup Failure",
+                description: "User types clerk@cort.gv (typo). DNS lookup fails. System cannot determine, terminates as Indeterminate.",
+                steps: [
+                    { layer: 1, state: "Allow", label: "L1: Process Control" },
+                    { layer: 2, state: "Hold", label: "L2: Safety Gate", detail: "Domain cannot be verified" },
+                    { layer: 3, state: "Insufficient", label: "L3: Evidence", detail: "No DNS record" },
+                    { layer: 4, state: "Indeterminate", label: "L4: Judgment", detail: "Terminal: Cannot determine" }
+                ]
+            }
+        };
+
+        // SVG setup
+        const svg = d3.select("#visualization");
+        const width = 1140;
+        const height = 600;
+        const layerWidth = 180;
+        const layerHeight = 100;
+        const layerSpacing = 200;
+
+        let currentScenario = "stop";
+        let currentStep = 0;
+        let isAnimating = false;
+
+        // Layer positions
+        const layers = [
+            { id: 1, x: 80, y: 80, label: "L1: Process", color: "#e1f5e1" },
+            { id: 2, x: 80, y: 200, label: "L2: Gate", color: "#ffe1e1" },
+            { id: 3, x: 80, y: 320, label: "L3: Evidence", color: "#e1e1ff" },
+            { id: 4, x: 480, y: 200, label: "L4: Judgment", color: "#f9f" },
+            { id: 5, x: 850, y: 200, label: "L5: Accountability", color: "#9ff" }
+        ];
+
+        // Draw layers
+        function drawLayers() {
+            svg.selectAll(".layer-group").remove();
+
+            const layerGroups = svg.selectAll(".layer-group")
+                .data(layers)
+                .enter()
+                .append("g")
+                .attr("class", "layer-group");
+
+            layerGroups.append("rect")
+                .attr("class", "layer-box")
+                .attr("x", d => d.x)
+                .attr("y", d => d.y)
+                .attr("width", layerWidth)
+                .attr("height", layerHeight)
+                .attr("fill", d => d.color);
+
+            layerGroups.append("text")
+                .attr("class", "layer-label")
+                .attr("x", d => d.x + layerWidth / 2)
+                .attr("y", d => d.y + 40)
+                .text(d => d.label);
+
+            layerGroups.append("text")
+                .attr("class", "layer-state")
+                .attr("x", d => d.x + layerWidth / 2)
+                .attr("y", d => d.y + 65)
+                .attr("id", d => `state-${d.id}`)
+                .text("");
+        }
+
+        // Draw connection lines
+        function drawPaths() {
+            svg.selectAll(".path-line").remove();
+
+            // L1 to L2
+            svg.append("path")
+                .attr("class", "path-line")
+                .attr("d", `M 170 130 L 170 200`);
+
+            // L2 to L3
+            svg.append("path")
+                .attr("class", "path-line")
+                .attr("d", `M 170 250 L 170 320`);
+
+            // L3 to L4
+            svg.append("path")
+                .attr("class", "path-line")
+                .attr("d", `M 260 370 L 480 250`);
+
+            // L4 to L5 (Stop/Allow cases)
+            svg.append("path")
+                .attr("class", "path-line")
+                .attr("d", `M 660 250 L 850 250`);
+
+            // L4 to Terminal (Indeterminate)
+            svg.append("path")
+                .attr("class", "path-line")
+                .attr("d", `M 570 300 L 570 430`)
+                .attr("id", "terminal-path")
+                .style("display", "none");
+
+            // L5 to Execution
+            svg.append("path")
+                .attr("class", "path-line")
+                .attr("d", `M 940 300 L 940 430`)
+                .attr("id", "execution-path");
+
+            // Terminal box (Indeterminate endpoint)
+            svg.append("rect")
+                .attr("x", 500)
+                .attr("y", 430)
+                .attr("width", 140)
+                .attr("height", 70)
+                .attr("fill", "#ff9")
+                .attr("stroke", "#333")
+                .attr("stroke-width", 2)
+                .attr("rx", 8)
+                .attr("id", "terminal-box")
+                .style("display", "none");
+
+            svg.append("text")
+                .attr("x", 570)
+                .attr("y", 455)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "14px")
+                .attr("font-weight", "600")
+                .text("Terminal")
+                .attr("id", "terminal-label")
+                .style("display", "none");
+
+            svg.append("text")
+                .attr("x", 570)
+                .attr("y", 475)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "12px")
+                .attr("fill", "#666")
+                .text("Human Required")
+                .attr("id", "terminal-sublabel")
+                .style("display", "none");
+
+            // Execution box (Stop/Allow endpoint)
+            svg.append("rect")
+                .attr("x", 870)
+                .attr("y", 430)
+                .attr("width", 140)
+                .attr("height", 70)
+                .attr("fill", "#cfc")
+                .attr("stroke", "#333")
+                .attr("stroke-width", 2)
+                .attr("rx", 8)
+                .attr("id", "execution-box")
+                .style("display", "none");
+
+            svg.append("text")
+                .attr("x", 940)
+                .attr("y", 455)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "14px")
+                .attr("font-weight", "600")
+                .text("Execution")
+                .attr("id", "execution-label")
+                .style("display", "none");
+
+            svg.append("text")
+                .attr("x", 940)
+                .attr("y", 475)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "12px")
+                .attr("fill", "#666")
+                .text("")
+                .attr("id", "execution-sublabel")
+                .style("display", "none");
+        }
+
+        // Create token
+        function createToken() {
+            svg.selectAll(".token").remove();
+
+            return svg.append("circle")
+                .attr("class", "token")
+                .attr("cx", 170)
+                .attr("cy", 60)
+                .attr("r", 12)
+                .style("opacity", 0);
+        }
+
+        // Animate token
+        async function animate() {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            const playBtn = document.getElementById("play");
+            playBtn.disabled = true;
+            playBtn.textContent = "Playing...";
+
+            const scenario = scenarios[currentScenario];
+            const token = createToken();
+
+            // Show token
+            token.transition()
+                .duration(300)
+                .style("opacity", 1);
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Animate through steps
+            for (let i = 0; i < scenario.steps.length; i++) {
+                const step = scenario.steps[i];
+                const layer = layers.find(l => l.id === step.layer);
+
+                // Highlight layer
+                svg.selectAll(".layer-box")
+                    .classed("active", d => d.id === step.layer);
+
+                // Move token
+                await token.transition()
+                    .duration(800)
+                    .attr("cx", layer.x + layerWidth / 2)
+                    .attr("cy", layer.y + layerHeight / 2)
+                    .end();
+
+                // Update state text
+                d3.select(`#state-${step.layer}`)
+                    .text(step.state)
+                    .style("fill", step.state === "Stop" ? "#d32f2f" :
+                           step.state === "Allow" ? "#388e3c" :
+                           step.state === "Indeterminate" ? "#f57c00" : "#666");
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            // Handle different case endings
+            if (currentScenario === "indeterminate") {
+                // Indeterminate: Move to Terminal
+                d3.select("#terminal-path").style("display", "block");
+                d3.select("#terminal-box").style("display", "block");
+                d3.select("#terminal-label").style("display", "block");
+                d3.select("#terminal-sublabel").style("display", "block");
+
+                await token.transition()
+                    .duration(800)
+                    .attr("cx", 570)
+                    .attr("cy", 465)
+                    .end();
+            } else {
+                // Stop/Allow: Move to L5, then Execution
+                const l5 = layers.find(l => l.id === 5);
+                await token.transition()
+                    .duration(800)
+                    .attr("cx", l5.x + layerWidth / 2)
+                    .attr("cy", l5.y + layerHeight / 2)
+                    .end();
+
+                svg.selectAll(".layer-box")
+                    .classed("active", d => d.id === 5);
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Move to Execution box
+                d3.select("#execution-box").style("display", "block");
+                d3.select("#execution-label").style("display", "block");
+                d3.select("#execution-sublabel").style("display", "block");
+
+                // Set execution sublabel based on case
+                d3.select("#execution-sublabel").text(
+                    currentScenario === "stop" ? "Blocked" : "Sent"
+                );
+
+                await token.transition()
+                    .duration(800)
+                    .attr("cx", 940)
+                    .attr("cy", 465)
+                    .end();
+            }
+
+            svg.selectAll(".layer-box").classed("active", false);
+
+            isAnimating = false;
+            playBtn.disabled = false;
+            playBtn.textContent = "Replay";
+        }
+
+        // Reset animation
+        function reset() {
+            svg.selectAll(".token").remove();
+            svg.selectAll(".layer-state").text("");
+            svg.selectAll(".layer-box").classed("active", false);
+
+            // Hide all endpoint boxes
+            d3.select("#terminal-path").style("display", "none");
+            d3.select("#terminal-box").style("display", "none");
+            d3.select("#terminal-label").style("display", "none");
+            d3.select("#terminal-sublabel").style("display", "none");
+
+            d3.select("#execution-box").style("display", "none");
+            d3.select("#execution-label").style("display", "none");
+            d3.select("#execution-sublabel").style("display", "none");
+
+            document.getElementById("play").textContent = "Play";
+            document.getElementById("play").disabled = false;
+            isAnimating = false;
+        }
+
+        // Update scenario
+        function updateScenario() {
+            currentScenario = document.getElementById("scenario").value;
+            const scenario = scenarios[currentScenario];
+
+            document.querySelector(".scenario-info h3").textContent = scenario.title;
+            document.querySelector(".scenario-info p").textContent = scenario.description;
+
+            reset();
+        }
+
+        // Event listeners
+        document.getElementById("play").addEventListener("click", animate);
+        document.getElementById("reset").addEventListener("click", reset);
+        document.getElementById("scenario").addEventListener("change", updateScenario);
+
+        // Initialize
+        drawLayers();
+        drawPaths();
+    </script>
+</body>
+</html>
