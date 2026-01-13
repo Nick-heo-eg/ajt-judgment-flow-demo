@@ -31,8 +31,6 @@ graph TD
     Start([Request]) --> L1[L1: Process Control]
 
     L1 -->|Allow| L2[L2: Safety Gate]
-    L1 -->|Pause| L1_Hold[Internal Hold]
-    L1_Hold -.->|Not Exposed| L1_Hold
 
     L2 -->|Allow| L3[L3: Evidence]
     L2 -->|Hold| L3
