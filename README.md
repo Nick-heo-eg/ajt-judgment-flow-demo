@@ -28,24 +28,24 @@ AJT is not a rule table. It is a flowing structure.
 
 ```mermaid
 graph TD
-    Start([Request]) --> L1[Layer 1: Process Control]
+    Start([Request]) --> L1[L1: Process Control]
 
-    L1 -->|Allow| L2[Layer 2: Safety / Policy Gate]
+    L1 -->|Allow| L2[L2: Safety Gate]
     L1 -->|Pause| L1_Hold[Internal Hold]
     L1_Hold -.->|Not Exposed| L1_Hold
 
-    L2 -->|Allow| L3[Layer 3: Evidence / Observation]
+    L2 -->|Allow| L3[L3: Evidence]
     L2 -->|Hold| L3
     L2 -->|Stop| L3
 
-    L3 -->|Sufficient Evidence| L4[Layer 4: Judgment Outcome]
-    L3 -->|Insufficient Evidence| L4
+    L3 -->|Sufficient| L4[L4: Judgment]
+    L3 -->|Insufficient| L4
 
-    L4 -->|Stop| L5[Layer 5: Accountability]
+    L4 -->|Stop| L5[L5: Accountability]
     L4 -->|Allow| L5
-    L4 -->|Indeterminate| End_Ind([Terminal: Human Required])
+    L4 -->|Indeterminate| End_Ind([Terminal])
 
-    L5 --> Exec[Execution / Effect]
+    L5 --> Exec[Execution]
 
     style L4 fill:#f9f,stroke:#333,stroke-width:4px
     style L5 fill:#9ff,stroke:#333,stroke-width:4px
@@ -60,13 +60,13 @@ graph TD
 
 ```mermaid
 graph LR
-    L4[Layer 4: Judgment] --> Stop
+    L4[L4: Judgment] --> Stop
     L4 --> Allow
     L4 --> Indeterminate
 
-    Stop --> L5[Layer 5]
+    Stop --> L5[L5]
     Allow --> L5
-    Indeterminate --> Terminal([No Further Flow])
+    Indeterminate --> Terminal([Terminal])
 
     style L4 fill:#f9f
     style Terminal fill:#ff9
@@ -83,9 +83,9 @@ graph LR
 
 ```mermaid
 graph TD
-    L4_Stop[Layer 4: Stop] -.->|No Layer 5| NoEffect([No Blocking Occurs])
-    L4_Stop -->|With Layer 5| L5[Layer 5: Accountability]
-    L5 --> Block[Blocking Effect]
+    L4_Stop[L4: Stop] -.->|No L5| NoEffect([No Block])
+    L4_Stop -->|With L5| L5[L5: Accountability]
+    L5 --> Block[Block Effect]
 
     style NoEffect fill:#fcc,stroke-dasharray: 5 5
     style Block fill:#cfc
@@ -102,14 +102,14 @@ graph TD
 
 ```mermaid
 graph LR
-    Insufficient[Layer 3: Insufficient Evidence] --> L4[Layer 4]
-    L4 --> Indeterminate([Indeterminate: Terminal])
+    Insufficient[L3: Insufficient] --> L4[L4]
+    L4 --> Indeterminate([Indeterminate])
 
     Indeterminate -.->|❌ No Retry| X1[X]
     Indeterminate -.->|❌ No Implicit Allow| X2[X]
     Indeterminate -.->|❌ No Escalate| X3[X]
 
-    Indeterminate -->|✅ Human Must Judge| Human[Human Decision Required]
+    Indeterminate -->|✅ Human Required| Human[Human Decision]
 
     style Indeterminate fill:#ff9
     style X1 fill:#fcc
@@ -129,10 +129,10 @@ graph LR
 
 ```mermaid
 graph TD
-    L1[Layer 1: Process Control<br/>Allow / Pause] --> L2[Layer 2: Safety Gate<br/>Stop / Hold / Allow]
-    L2 --> L3[Layer 3: Evidence<br/>Sufficient / Insufficient]
-    L3 --> L4[Layer 4: Judgment Outcome<br/>Stop / Allow / Indeterminate]
-    L4 --> L5[Layer 5: Accountability<br/>Logging Only]
+    L1[L1: Process<br/>Allow / Pause] --> L2[L2: Gate<br/>Stop / Hold / Allow]
+    L2 --> L3[L3: Evidence<br/>Sufficient / Insufficient]
+    L3 --> L4[L4: Judgment<br/>Stop / Allow / Indet]
+    L4 --> L5[L5: Accountability<br/>Logs Only]
 
     style L1 fill:#e1f5e1
     style L2 fill:#ffe1e1
@@ -153,27 +153,27 @@ graph TD
 
 ```mermaid
 graph TD
-    subgraph External["External Exposure (API/UI)"]
+    subgraph External["External (API/UI)"]
         Ext_Stop[Stop]
         Ext_Allow[Allow]
-        Ext_Indet[Indeterminate]
+        Ext_Indet[Indet]
     end
 
-    subgraph Internal["Internal States (Not Exposed)"]
+    subgraph Internal["Internal Only"]
         Int_Pause[Pause]
         Int_Hold[Hold]
-        Int_Sufficient[Sufficient Evidence]
-        Int_Insufficient[Insufficient Evidence]
+        Int_Suff[Sufficient]
+        Int_Insuff[Insufficient]
     end
 
-    L4[Layer 4: Judgment Outcome] --> Ext_Stop
+    L4[L4] --> Ext_Stop
     L4 --> Ext_Allow
     L4 --> Ext_Indet
 
-    L1[Layer 1] -.->|Never Exposed| Int_Pause
-    L2[Layer 2] -.->|Never Exposed| Int_Hold
-    L3[Layer 3] -.->|Never Exposed| Int_Sufficient
-    L3 -.->|Never Exposed| Int_Insufficient
+    L1[L1] -.-> Int_Pause
+    L2[L2] -.-> Int_Hold
+    L3[L3] -.-> Int_Suff
+    L3 -.-> Int_Insuff
 
     style External fill:#cfc
     style Internal fill:#fcc
