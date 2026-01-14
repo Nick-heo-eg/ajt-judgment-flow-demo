@@ -1,5 +1,12 @@
 # AJT Judgment Flow Demo
 
+This repository documents experimental execution during research.
+It does not represent a production system, live authority, or active enforcement.
+
+---
+
+
+
 **Status**: Non-normative / Educational visualization
 
 This repository demonstrates AJT (Audit Judgment Trail) judgment flow through visual diagrams.
